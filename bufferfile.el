@@ -205,7 +205,7 @@ PROMPT-PREFIX: The text prepended to the user input prompt."
     (when (string= (file-truename filename)
                    (file-truename new-filename))
       (bufferfile--error
-       "Ignored because the destination is the same as the source"))
+        "Ignored because the destination is the same as the source"))
     new-filename))
 
 (defun bufferfile--read-dest-file-name-rename (filename ok-if-already-exists)
@@ -220,8 +220,8 @@ is non-nil."
                 "Destination file '%s' already exists. Do you want to overwrite it?"
                 new-filename))
         (bufferfile--error
-         "Rename failed: Destination filename already exists: %s"
-         new-filename)))
+          "Rename failed: Destination filename already exists: %s"
+          new-filename)))
 
     new-filename))
 
@@ -356,14 +356,11 @@ This includes indirect buffers whose names are derived from the old filename."
 
     ;; Update the names of file visiting buffer and indirect buffers (clones)
     ;; associated with buffers visiting the renamed files.
-    (let ((basename (file-name-nondirectory old-filename))
-          (new-basename (file-name-nondirectory new-filename))
-          (new-filename-truename (file-truename new-filename)))
+    (let ((new-filename-truename (file-truename new-filename)))
       (dolist (buf indirect-buffers)
         (with-current-buffer buf
           (when-let* ((base-buffer (buffer-base-buffer)))
-            (let ((base-buffer-filename (buffer-file-name base-buffer))
-                  (buffer-name (buffer-name)))
+            (let ((base-buffer-filename (buffer-file-name base-buffer)))
               (when (and base-buffer-filename
                          (string= (file-truename base-buffer-filename)
                                   new-filename-truename))
@@ -371,7 +368,8 @@ This includes indirect buffers whose names are derived from the old filename."
 
 (defun bufferfile-rename-file (filename
                                new-filename
-                               &optional ok-if-already-exists)
+                               &optional ok-if-already-exists
+                               confirm-overwrite)
   "Rename FILENAME to NEW-FILENAME.
 
 This function updates:
@@ -383,13 +381,32 @@ Hooks in `bufferfile-pre-rename-functions' and
 `bufferfile-post-rename-functions' are run before and after the renaming
 process.
 
-Signal an error if a filename NEWNAME already exists unless OK-IF-ALREADY-EXISTS
-is non-nil."
-  (let (list-buffers)
-    (when (and (not ok-if-already-exists)
-               (file-exists-p new-filename))
-      (error "%sDestination file '%s' already exists"
-             bufferfile-message-prefix new-filename))
+When CONFIRM-OVERWRITE is non-nil, prompt the user for confirmation before
+overwriting existing files.
+
+Signal an error if NEW-FILENAME already exists unless OK-IF-ALREADY-EXISTS is
+non-nil."
+  (let ((src-truename (file-truename filename))
+        (dst-truename (file-truename new-filename))
+        list-buffers)
+    (when (string= src-truename dst-truename)
+      (bufferfile--error "Source and destination are the same file: '%s'"
+                         src-truename))
+
+    (unless (file-exists-p filename)
+      (bufferfile--error "Source file '%s' does not exist; cannot move to '%s'"
+                         filename new-filename))
+
+    (when (file-exists-p new-filename)
+      (if (and (not ok-if-already-exists)
+               confirm-overwrite)
+          (if (y-or-n-p
+               (format "Destination file '%s' already exists. Overwrite? "
+                       new-filename))
+              (setq ok-if-already-exists t)
+            (bufferfile--error "Rename aborted"))
+        (bufferfile--error "Destination file '%s' already exists"
+                           new-filename)))
 
     (setq list-buffers (bufferfile--get-list-buffers filename))
 
@@ -509,7 +526,7 @@ process."
         (let ((new-filename
                (bufferfile--read-dest-file-name-rename filename
                                                        ok-if-already-exists)))
-          (bufferfile-rename-file filename new-filename t))))))
+          (bufferfile-rename-file filename new-filename nil t))))))
 
 ;;; Dired do rename
 
@@ -530,7 +547,7 @@ If multiple files are marked, delegate to `dired-do-rename'."
             (dired-do-rename arg))
         (progn
           (when (or (not marked-files) (= (length marked-files) 0))
-            (user-error "You need to select at least one file"))
+            (bufferfile--error "You need to select at least one file"))
 
           (setq old-filename (car marked-files))
           (setq new-filename
@@ -576,7 +593,8 @@ process."
                (list-buffers (bufferfile--get-list-buffers filename))
                (parent-dir-path (file-name-directory filename)))
           (unless parent-dir-path
-            (error "Cannot find the parent directory of: %s" filename))
+            (bufferfile--error "Cannot find the parent directory of: %s"
+                               filename))
           (dolist (buf list-buffers)
             (with-current-buffer buf
               (when (buffer-modified-p)
