@@ -12,7 +12,12 @@ This [bufferfile.el](https://github.com/jamescherti/bufferfile.el) package provi
 - `bufferfile-delete`: Delete the file associated with a buffer and kill all buffers visiting the file, including clones/indirect buffers.
 - `bufferfile-copy`: Ensures that the destination directory exists and copies the file visited by the current buffer to a new file.
 
-The functions above also ensures that any modified buffers are saved prior to executing operations like renaming, deleting, or copying.
+**The *bufferfile* package overcomes limitations in Emacs' built-in functions:**
+
+* **Emacs built-in renaming:** While indirect buffers continue to reference the correct file path, their buffer names can become outdated.
+* **Emacs built-in deleting:** Indirect buffers are not automatically removed when the base buffer or another indirect buffer is deleted.
+
+**The bufferfile package resolves these issues** by updating buffer names when a file is renamed and removing all related buffers, including indirect ones, when a file is deleted.
 
 If this enhances your workflow, please show your support by **⭐ starring bufferfile.el on GitHub** to help more Emacs users discover its benefits.
 
@@ -22,20 +27,20 @@ If this enhances your workflow, please show your support by **⭐ starring buffe
 ## Table of Contents
 
 - [bufferfile.el - Rename, Delete, or Copy Files and Associated Buffers (e.g., clones/indirect buffers)](#bufferfileel---rename-delete-or-copy-files-and-associated-buffers-eg-clonesindirect-buffers)
-    - [Introduction](#introduction)
-    - [Installation from MELPA](#installation-from-melpa)
-    - [Usage](#usage)
-    - [Customizations](#customizations)
-        - [How to make Dired use bufferfile to rename files](#how-to-make-dired-use-bufferfile-to-rename-files)
-        - [Making bufferfile use version control (VC), such as Git, when renaming or deleting files?](#making-bufferfile-use-version-control-vc-such-as-git-when-renaming-or-deleting-files)
-        - [Hook functions](#hook-functions)
-            - [Hooks for Renaming Files](#hooks-for-renaming-files)
-            - [Hooks for Deleting Files](#hooks-for-deleting-files)
-    - [Frequently asked questions](#frequently-asked-questions)
-        - [What is the difference between bufferfile and the built-in Emacs rename and delete functions?](#what-is-the-difference-between-bufferfile-and-the-built-in-emacs-rename-and-delete-functions)
-    - [Author and License](#author-and-license)
-    - [Testimonials](#testimonials)
-    - [Links](#links)
+  - [Introduction](#introduction)
+  - [Installation from MELPA](#installation-from-melpa)
+  - [Usage](#usage)
+  - [Customizations](#customizations)
+    - [How to make Dired use bufferfile to rename files](#how-to-make-dired-use-bufferfile-to-rename-files)
+    - [Making bufferfile use version control (VC), such as Git, when renaming or deleting files?](#making-bufferfile-use-version-control-vc-such-as-git-when-renaming-or-deleting-files)
+    - [Hook functions](#hook-functions)
+      - [Hooks for Renaming Files](#hooks-for-renaming-files)
+      - [Hooks for Deleting Files](#hooks-for-deleting-files)
+  - [Frequently asked questions](#frequently-asked-questions)
+    - [What is the difference between bufferfile and the built-in Emacs rename and delete functions?](#what-is-the-difference-between-bufferfile-and-the-built-in-emacs-rename-and-delete-functions)
+  - [Author and License](#author-and-license)
+  - [Testimonials](#testimonials)
+  - [Links](#links)
 
 <!-- markdown-toc end -->
 
@@ -50,6 +55,9 @@ To install *bufferfile* from MELPA:
 ```emacs-lisp
 (use-package bufferfile
   :ensure t
+  :commands (bufferfile-copy
+             bufferfile-rename
+             bufferfile-delete)
   :custom
   ;; If non-nil, display messages during file renaming operations
   (bufferfile-verbose nil)
