@@ -5,8 +5,6 @@
 ![License](https://img.shields.io/github/license/jamescherti/bufferfile.el)
 ![](https://jamescherti.com/misc/made-for-gnu-emacs.svg)
 
-## Introduction
-
 This [bufferfile.el](https://github.com/jamescherti/bufferfile.el) package provides helper functions to delete, rename, or copy buffer files:
 - `bufferfile-rename`: Renames the file visited by the current buffer, ensures that the destination directory exists, and updates the buffer name for all associated buffers, including clones/indirect buffers. It also ensures that buffer-local features referencing the file, such as Eglot or dired buffers, are correctly updated to reflect the new file name.
 - `bufferfile-delete`: Delete the file associated with a buffer and kill all buffers visiting the file, including clones/indirect buffers.
@@ -27,7 +25,6 @@ If this enhances your workflow, please show your support by **⭐ starring buffe
 ## Table of Contents
 
 - [bufferfile.el - Rename, Delete, or Copy Files and Associated Buffers (e.g., clones/indirect buffers)](#bufferfileel---rename-delete-or-copy-files-and-associated-buffers-eg-clonesindirect-buffers)
-  - [Introduction](#introduction)
   - [Installation from MELPA](#installation-from-melpa)
   - [Usage](#usage)
   - [Customizations](#customizations)
