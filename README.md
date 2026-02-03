@@ -12,14 +12,14 @@ This [bufferfile.el](https://github.com/jamescherti/bufferfile.el) package provi
 - `bufferfile-delete`: Delete the file associated with a buffer and kill all buffers visiting the file, including clones/indirect buffers.
 - `bufferfile-copy`: Ensures that the destination directory exists and copies the file visited by the current buffer to a new file.
 
+If this enhances your workflow, please show your support by **⭐ starring bufferfile.el on GitHub** to help more Emacs users discover its benefits.
+
 **The *bufferfile* package overcomes limitations in Emacs' built-in functions:**
 
 * **Emacs built-in renaming:** While indirect buffers continue to reference the correct file path, their buffer names can become outdated.
 * **Emacs built-in deleting:** Indirect buffers are not automatically removed when the base buffer or another indirect buffer is deleted.
 
 **The bufferfile package resolves these issues** by updating buffer names when a file is renamed and removing all related buffers, including indirect ones, when a file is deleted.
-
-If this enhances your workflow, please show your support by **⭐ starring bufferfile.el on GitHub** to help more Emacs users discover its benefits.
 
 (To make *bufferfile* use version control when renaming or deleting files, you can set the variable `bufferfile-use-vc` to t. This ensures that file operations within *bufferfile* interact with the version control system, preserving history and tracking changes properly.)
 
