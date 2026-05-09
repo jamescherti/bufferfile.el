@@ -44,8 +44,6 @@
 
 ;;; Code:
 
-(require 'hi-lock)
-
 ;;; Customizations
 
 (defgroup bufferfile nil
@@ -208,7 +206,7 @@ PROMPT-PREFIX: The text prepended to the user input prompt."
     (when (string= (file-truename filename)
                    (file-truename new-filename))
       (bufferfile--error
-        "Ignored because the destination is the same as the source"))
+       "Ignored because the destination is the same as the source"))
     new-filename))
 
 (defun bufferfile--read-dest-file-name-rename (filename ok-if-already-exists)
@@ -223,8 +221,8 @@ is non-nil."
                 "Destination file '%s' already exists. Do you want to overwrite it?"
                 new-filename))
         (bufferfile--error
-          "Rename failed: Destination filename already exists: %s"
-          new-filename)))
+         "Rename failed: Destination filename already exists: %s"
+         new-filename)))
 
     new-filename))
 
