@@ -605,6 +605,106 @@ If multiple files are marked, delegate to `dired-do-rename'."
 
 ;;; Delete file
 
+(defun bufferfile-delete-file (filename)
+  "Delete FILENAME from disk and kill all associated buffers.
+This function performs a comprehensive cleanup of FILENAME by:
+- Saving all modified buffers visiting the file.
+- Killing all associated buffers (including indirect buffers and clones).
+- Handling Version Control (VC) if `bufferfile-use-vc' is non-nil and the
+  file is managed by a backend.
+- Shutting down Eglot servers managed by the buffers if
+  `bufferfile-eglot-integration' is enabled.
+- Refreshing Dired buffers for the parent directory.
+- Switching to a new buffer based on `bufferfile-delete-switch-to'."
+  (when bufferfile-use-vc
+    (require 'vc))
+
+  (setq filename (expand-file-name filename))
+  (let* ((vc-managed-file (when bufferfile-use-vc
+                            (vc-backend filename)))
+         (list-buffers (bufferfile--get-list-buffers filename))
+         (parent-dir-path (file-name-directory filename)))
+    (unless parent-dir-path
+      (bufferfile--error "Cannot find the parent directory of: %s"
+                         filename))
+
+    (dolist (buf list-buffers)
+      (with-current-buffer buf
+        (when (buffer-modified-p)
+          (let ((save-silently t))
+            (save-buffer)))))
+
+    (run-hook-with-args 'bufferfile-pre-delete-functions
+                        filename list-buffers)
+
+    (when vc-managed-file
+      (catch 'done
+        (dolist (buf list-buffers)
+          ;; Revert version control changes before killing the buffer;
+          ;; otherwise, `vc-delete-file' will fail to delete the file
+          (when (and (buffer-live-p buf)
+                     (not (vc-up-to-date-p filename)))
+            (with-current-buffer buf
+              (if (fboundp 'vc-revert-file)
+                  (vc-revert-file filename)
+                (bufferfile--error "'vc-revert-file' has not been declared")))
+
+            (throw 'done t)))))
+
+    ;; Kill buffer
+    (dolist (buf list-buffers)
+      (when bufferfile-eglot-integration
+        (with-current-buffer buf
+          (when (and (fboundp 'eglot-current-server)
+                     (fboundp 'eglot-shutdown)
+                     (fboundp 'eglot-managed-p)
+                     (funcall 'eglot-managed-p))
+            (let ((server (funcall 'eglot-current-server)))
+              (when server
+                ;; Do not display errors such as:
+                ;; [jsonrpc] (warning) Sentinel for EGLOT
+                ;; (ansible-unused/(python-mode python-ts-mode)) still
+                ;; hasn't run, deleting it!
+                ;; [jsonrpc] Server exited with status 9
+                (let ((inhibit-message t))
+                  (funcall 'eglot-shutdown server)))))))
+
+      (kill-buffer buf))
+
+    ;; Find file first
+    (cond
+     ((eq bufferfile-delete-switch-to 'parent-directory)
+      (let ((parent-dir-buffer (find-file parent-dir-path)))
+        (when (buffer-live-p parent-dir-buffer)
+          (with-current-buffer parent-dir-buffer
+            (when (and (derived-mode-p 'dired-mode)
+                       (fboundp 'dired-goto-file))
+              (dired-goto-file filename)))
+          (set-window-buffer (selected-window) parent-dir-buffer))))
+
+     ((eq bufferfile-delete-switch-to 'previous-buffer)
+      (previous-buffer)))
+
+    ;; Delete file
+    (when (file-exists-p filename)
+      (if (and bufferfile-use-vc
+               vc-managed-file)
+          ;; VC delete
+          (bufferfile--vc-delete-file filename)
+        ;; Delete
+        (delete-file filename delete-by-moving-to-trash)))
+
+    (when bufferfile-verbose
+      (bufferfile--message "Deleted: %s" (abbreviate-file-name filename)))
+
+    ;; Refresh dired buffers BEFORE killing the buffer
+    (when bufferfile-dired-integration
+      (bufferfile--refresh-dired-buffers parent-dir-path))
+
+    (run-hook-with-args 'bufferfile-post-delete-functions
+                        filename
+                        list-buffers)))
+
 ;;;###autoload
 (defun bufferfile-delete (&optional buffer)
   "Kill the current buffer and delete the file associated with it.
@@ -624,100 +724,15 @@ process."
                        (buffer-name buffer)))
 
   (with-current-buffer buffer
-    (let* ((buffer (or buffer (current-buffer)))
-           (filename nil))
-      (setq filename (buffer-file-name (or (buffer-base-buffer buffer)
-                                           buffer)))
-
-      (if filename
-          (setq filename (expand-file-name filename))
+    (let* ((filename (buffer-file-name (or (buffer-base-buffer buffer)
+                                           buffer))))
+      (unless filename
         (bufferfile--error "The buffer '%s' is not visiting a file"
                            (buffer-name buffer)))
 
       (when (y-or-n-p (format "Delete file '%s'?"
                               (file-name-nondirectory filename)))
-        (when bufferfile-use-vc
-          (require 'vc))
-
-        (let* ((vc-managed-file (when bufferfile-use-vc
-                                  (vc-backend filename)))
-               (list-buffers (bufferfile--get-list-buffers filename))
-               (parent-dir-path (file-name-directory filename)))
-          (unless parent-dir-path
-            (bufferfile--error "Cannot find the parent directory of: %s"
-                               filename))
-
-          (dolist (buf list-buffers)
-            (with-current-buffer buf
-              (when (buffer-modified-p)
-                (let ((save-silently t))
-                  (save-buffer)))))
-
-          (run-hook-with-args 'bufferfile-pre-delete-functions
-                              filename list-buffers)
-
-          (when vc-managed-file
-            ;; Revert version control changes before killing the buffer;
-            ;; otherwise, `vc-delete-file' will fail to delete the file
-            (when (not (vc-up-to-date-p filename))
-              (with-current-buffer buffer
-                (if (fboundp 'vc-revert-file)
-                    (vc-revert-file filename)
-                  (bufferfile--error "'vc-revert-file' has not been declared")))))
-
-          ;; Kill buffer
-          (dolist (buf list-buffers)
-            (when bufferfile-eglot-integration
-              (with-current-buffer buf
-                (when (and (fboundp 'eglot-current-server)
-                           (fboundp 'eglot-shutdown)
-                           (fboundp 'eglot-managed-p)
-                           (funcall 'eglot-managed-p))
-                  (let ((server (funcall 'eglot-current-server)))
-                    (when server
-                      ;; Do not display errors such as:
-                      ;; [jsonrpc] (warning) Sentinel for EGLOT
-                      ;; (ansible-unused/(python-mode python-ts-mode)) still
-                      ;; hasn't run, deleting it!
-                      ;; [jsonrpc] Server exited with status 9
-                      (let ((inhibit-message t))
-                        (funcall 'eglot-shutdown server)))))))
-
-            (kill-buffer buf))
-
-          ;; Find file first
-          (cond
-           ((eq bufferfile-delete-switch-to 'parent-directory)
-            (let ((parent-dir-buffer (find-file parent-dir-path)))
-              (when (buffer-live-p parent-dir-buffer)
-                (with-current-buffer parent-dir-buffer
-                  (when (and (derived-mode-p 'dired-mode)
-                             (fboundp 'dired-goto-file))
-                    (dired-goto-file filename)))
-                (switch-to-buffer parent-dir-buffer nil t))))
-
-           ((eq bufferfile-delete-switch-to 'previous-buffer)
-            (previous-buffer)))
-
-          ;; Delete file
-          (when (file-exists-p filename)
-            (if (and bufferfile-use-vc
-                     vc-managed-file)
-                ;; VC delete
-                (bufferfile--vc-delete-file filename)
-              ;; Delete
-              (delete-file filename delete-by-moving-to-trash)))
-
-          (when bufferfile-verbose
-            (bufferfile--message "Deleted: %s" (abbreviate-file-name filename)))
-
-          ;; Refresh dired buffers BEFORE killing the buffer
-          (when bufferfile-dired-integration
-            (bufferfile--refresh-dired-buffers parent-dir-path))
-
-          (run-hook-with-args 'bufferfile-post-delete-functions
-                              filename
-                              list-buffers))))))
+        (bufferfile-delete-file filename)))))
 
 ;;; Copy
 
