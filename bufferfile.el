@@ -22,7 +22,6 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
-
 ;;; Commentary:
 ;; This package provides helper functions to delete and rename buffer files:
 ;; - bufferfile-rename: Renames the file visited by the current buffer and
@@ -198,15 +197,15 @@ PROMPT-PREFIX: The text prepended to the user input prompt."
                         nil
                         nil
                         basename
-                        (lambda (filename)
-                          (file-regular-p filename)))))
+                        #'(lambda (filename)
+                            (file-regular-p filename)))))
     (unless new-filename
       (bufferfile--error "A new file name must be specified"))
 
     (when (string= (file-truename filename)
                    (file-truename new-filename))
       (bufferfile--error
-       "Ignored because the destination is the same as the source"))
+        "Ignored because the destination is the same as the source"))
     new-filename))
 
 (defun bufferfile--read-dest-file-name-rename (filename ok-if-already-exists)
@@ -221,8 +220,8 @@ is non-nil."
                 "Destination file '%s' already exists. Do you want to overwrite it?"
                 new-filename))
         (bufferfile--error
-         "Rename failed: Destination filename already exists: %s"
-         new-filename)))
+          "Rename failed: Destination filename already exists: %s"
+          new-filename)))
 
     new-filename))
 
@@ -593,23 +592,27 @@ process."
   (interactive)
   (unless buffer
     (setq buffer (current-buffer)))
+
+  (unless (buffer-live-p buffer)
+    (bufferfile--error "The buffer '%s' is not alive"
+                       (buffer-name buffer)))
+
   (with-current-buffer buffer
     (let* ((buffer (or buffer (current-buffer)))
            (filename nil))
-      (unless (buffer-live-p buffer)
-        (bufferfile--error "The buffer '%s' is not alive"
-                           (buffer-name buffer)))
+      (setq filename (buffer-file-name (or (buffer-base-buffer buffer)
+                                           buffer)))
 
-      (setq filename (buffer-file-name (or (buffer-base-buffer buffer) buffer)))
-      (unless filename
+      (if filename
+          (setq filename (expand-file-name filename))
         (bufferfile--error "The buffer '%s' is not visiting a file"
                            (buffer-name buffer)))
-      (setq filename (expand-file-name filename))
 
       (when (y-or-n-p (format "Delete file '%s'?"
                               (file-name-nondirectory filename)))
         (when bufferfile-use-vc
           (require 'vc))
+
         (let* ((vc-managed-file (when bufferfile-use-vc
                                   (vc-backend filename)))
                (list-buffers (bufferfile--get-list-buffers filename))
@@ -617,6 +620,7 @@ process."
           (unless parent-dir-path
             (bufferfile--error "Cannot find the parent directory of: %s"
                                filename))
+
           (dolist (buf list-buffers)
             (with-current-buffer buf
               (when (buffer-modified-p)
@@ -636,8 +640,8 @@ process."
                   (bufferfile--error "'vc-revert-file' has not been declared")))))
 
           ;; Kill buffer
-          (when bufferfile-eglot-integration
-            (dolist (buf list-buffers)
+          (dolist (buf list-buffers)
+            (when bufferfile-eglot-integration
               (with-current-buffer buf
                 (when (and (fboundp 'eglot-current-server)
                            (fboundp 'eglot-shutdown)
@@ -651,8 +655,9 @@ process."
                       ;; hasn't run, deleting it!
                       ;; [jsonrpc] Server exited with status 9
                       (let ((inhibit-message t))
-                        (funcall 'eglot-shutdown server))))))
-              (kill-buffer buf)))
+                        (funcall 'eglot-shutdown server)))))))
+
+            (kill-buffer buf))
 
           ;; Find file first
           (cond
@@ -668,6 +673,7 @@ process."
            ((eq bufferfile-delete-switch-to 'previous-buffer)
             (previous-buffer)))
 
+          ;; Delete file
           (when (file-exists-p filename)
             (if (and bufferfile-use-vc
                      vc-managed-file)
@@ -679,7 +685,7 @@ process."
           (when bufferfile-verbose
             (bufferfile--message "Deleted: %s" (abbreviate-file-name filename)))
 
-          ;; Refresh dired buffers
+          ;; Refresh dired buffers BEFORE killing the buffer
           (when bufferfile-dired-integration
             (bufferfile--refresh-dired-buffers parent-dir-path))
 
@@ -722,9 +728,13 @@ process."
           ;; Refresh dired buffers
           (when bufferfile-dired-integration
             ;; Refresh the dired buffer
-            (let ((parent-dir-path (file-name-directory (expand-file-name new-filename))))
-              (bufferfile--refresh-dired-buffers parent-dir-path new-filename))))))))
+            (let ((parent-dir-path (file-name-directory
+                                    (expand-file-name new-filename))))
+              (bufferfile--refresh-dired-buffers parent-dir-path
+                                                 new-filename))))))))
 
 ;;; Provide
+
 (provide 'bufferfile)
+
 ;;; bufferfile.el ends here
