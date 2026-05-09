@@ -652,8 +652,8 @@ This function performs a comprehensive cleanup of FILENAME by:
               (throw 'done t))))))
 
     ;; Kill buffer
-    (dolist (buf list-buffers)
-      (when bufferfile-eglot-integration
+    (when bufferfile-eglot-integration
+      (dolist (buf list-buffers)
         (with-current-buffer buf
           (when (and (fboundp 'eglot-current-server)
                      (fboundp 'eglot-shutdown)
@@ -667,23 +667,9 @@ This function performs a comprehensive cleanup of FILENAME by:
                 ;; hasn't run, deleting it!
                 ;; [jsonrpc] Server exited with status 9
                 (let ((inhibit-message t))
-                  (funcall 'eglot-shutdown server)))))))
+                  (funcall 'eglot-shutdown server))))))
 
-      (kill-buffer buf))
-
-    ;; Find file first
-    (cond
-     ((eq bufferfile-delete-switch-to 'parent-directory)
-      (let ((parent-dir-buffer (find-file parent-dir-path)))
-        (when (buffer-live-p parent-dir-buffer)
-          (with-current-buffer parent-dir-buffer
-            (when (and (derived-mode-p 'dired-mode)
-                       (fboundp 'dired-goto-file))
-              (dired-goto-file filename)))
-          (set-window-buffer (selected-window) parent-dir-buffer))))
-
-     ((eq bufferfile-delete-switch-to 'previous-buffer)
-      (previous-buffer)))
+        (kill-buffer buf)))
 
     ;; Delete file
     (when (file-exists-p filename)
@@ -725,14 +711,32 @@ process."
 
   (with-current-buffer buffer
     (let* ((filename (buffer-file-name (or (buffer-base-buffer buffer)
-                                           buffer))))
+                                           buffer)))
+           (parent-dir-path (file-name-directory filename)))
+      (unless parent-dir-path
+        (bufferfile--error "Cannot find the parent directory of: %s"
+                           filename))
+
       (unless filename
         (bufferfile--error "The buffer '%s' is not visiting a file"
                            (buffer-name buffer)))
 
       (when (y-or-n-p (format "Delete file '%s'?"
                               (file-name-nondirectory filename)))
-        (bufferfile-delete-file filename)))))
+        (bufferfile-delete-file filename)
+
+        (cond
+         ((eq bufferfile-delete-switch-to 'parent-directory)
+          (let ((parent-dir-buffer (find-file parent-dir-path)))
+            (when (buffer-live-p parent-dir-buffer)
+              (with-current-buffer parent-dir-buffer
+                (when (and (derived-mode-p 'dired-mode)
+                           (fboundp 'dired-goto-file))
+                  (dired-goto-file filename)))
+              (set-window-buffer (selected-window) parent-dir-buffer))))
+
+         ((eq bufferfile-delete-switch-to 'previous-buffer)
+          (previous-buffer)))))))
 
 ;;; Copy
 
