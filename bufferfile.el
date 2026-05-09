@@ -640,16 +640,16 @@ This function performs a comprehensive cleanup of FILENAME by:
     (when vc-managed-file
       (catch 'done
         (dolist (buf list-buffers)
-          ;; Revert version control changes before killing the buffer;
-          ;; otherwise, `vc-delete-file' will fail to delete the file
-          (when (and (buffer-live-p buf)
-                     (not (vc-up-to-date-p filename)))
-            (with-current-buffer buf
-              (if (fboundp 'vc-revert-file)
-                  (vc-revert-file filename)
-                (bufferfile--error "'vc-revert-file' has not been declared")))
+          (when (buffer-live-p buf)
+            ;; Revert version control changes before killing the buffer;
+            ;; otherwise, `vc-delete-file' will fail to delete the file
+            (when (not (vc-up-to-date-p filename))
+              (with-current-buffer buf
+                (if (fboundp 'vc-revert-file)
+                    (vc-revert-file filename)
+                  (bufferfile--error "'vc-revert-file' has not been declared")))
 
-            (throw 'done t)))))
+              (throw 'done t))))))
 
     ;; Kill buffer
     (dolist (buf list-buffers)
