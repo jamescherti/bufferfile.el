@@ -712,14 +712,16 @@ process."
   (with-current-buffer buffer
     (let* ((filename (buffer-file-name (or (buffer-base-buffer buffer)
                                            buffer)))
-           (parent-dir-path (file-name-directory filename)))
-      (unless parent-dir-path
-        (bufferfile--error "Cannot find the parent directory of: %s"
-                           filename))
-
+           (parent-dir-path nil))
       (unless filename
         (bufferfile--error "The buffer '%s' is not visiting a file"
                            (buffer-name buffer)))
+
+      (setq parent-dir-path (file-name-directory filename))
+
+      (unless parent-dir-path
+        (bufferfile--error "Cannot find the parent directory of: %s"
+                           filename))
 
       (when (y-or-n-p (format "Delete file '%s'?"
                               (file-name-nondirectory filename)))
