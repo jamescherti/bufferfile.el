@@ -423,9 +423,9 @@ non-nil."
       (bufferfile--error "Source file '%s' does not exist; cannot move to '%s'"
                          filename new-filename))
 
-    (when (file-exists-p new-filename)
-      (if (and (not ok-if-already-exists)
-               confirm-overwrite)
+    (when (and (file-exists-p new-filename)
+               (not ok-if-already-exists))
+      (if confirm-overwrite
           (if (y-or-n-p
                (format "Destination file '%s' already exists. Overwrite? "
                        new-filename))
@@ -601,7 +601,7 @@ If multiple files are marked, delegate to `dired-do-rename'."
                 (bufferfile--read-dest-file-name-rename old-filename t))
 
           (when new-filename
-            (bufferfile-rename-file old-filename new-filename t)))))))
+            (bufferfile-rename-file old-filename new-filename nil t)))))))
 
 ;;; Delete file
 
