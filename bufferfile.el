@@ -155,14 +155,14 @@ visiting the specified FILENAME (based on the true file path), it is added to
 the resulting list.
 
 Returns a list of buffers that are associated with FILENAME."
-  (let ((filename (file-truename filename))
+  (let ((filename-true (file-truename filename))
         (list-buffers nil))
     (dolist (buf (buffer-list))
       (when (buffer-live-p buf)
         (let* ((base-buf (or (buffer-base-buffer buf) buf))
                (buf-filename (when base-buf (buffer-file-name base-buf))))
           (when (and buf-filename
-                     (string-equal filename (file-truename buf-filename)))
+                     (string-equal filename-true (file-truename buf-filename)))
             (push buf list-buffers)))))
     list-buffers))
 
@@ -198,8 +198,8 @@ PROMPT-PREFIX: The text prepended to the user input prompt."
                         nil
                         nil
                         basename
-                        #'(lambda(filename)
-                            (file-regular-p filename)))))
+                        (lambda (filename)
+                          (file-regular-p filename)))))
     (unless new-filename
       (bufferfile--error "A new file name must be specified"))
 
@@ -466,7 +466,7 @@ non-nil."
                              (abbreviate-file-name filename)
                              (abbreviate-file-name new-filename))))
 
-    ;; Update all buffers pointing to the old filename Broken
+    ;; Update all buffers pointing to the old filename
     (bufferfile--rename-all-buffers filename new-filename)
 
     (when (and bufferfile-recentf-integration
@@ -606,8 +606,8 @@ process."
                            (buffer-name buffer)))
       (setq filename (expand-file-name filename))
 
-      (when (yes-or-no-p (format "Delete file '%s'?"
-                                 (file-name-nondirectory filename)))
+      (when (y-or-n-p (format "Delete file '%s'?"
+                              (file-name-nondirectory filename)))
         (when bufferfile-use-vc
           (require 'vc))
         (let* ((vc-managed-file (when bufferfile-use-vc
