@@ -318,8 +318,9 @@ buffer."
         (when (fboundp 'dired-revert)
           (when bufferfile-verbose
             (bufferfile--message "dired-revert: %s" default-directory))
-          (ignore-errors
-            (funcall 'dired-revert))))))
+          (let ((inhibit-message (not bufferfile-verbose)))
+            (ignore-errors
+              (funcall 'dired-revert)))))))
 
   ;; Walk windows
   (walk-windows
@@ -461,73 +462,78 @@ non-nil."
       (when-let* ((dest-dir (file-name-directory new-filename)))
         (make-directory dest-dir t)))
 
-    (if (and bufferfile-use-vc
-             (vc-backend filename)
-             (let ((root1
-                    (let ((default-directory (file-name-directory filename)))
-                      (vc-root-dir)))
-                   (root2
-                    (let ((default-directory (file-name-directory new-filename)))
-                      (vc-root-dir))))
-               (and root1
-                    root2
-                    (string= root1 root2))))
-        (progn
-          (when bufferfile-verbose
-            (bufferfile--message
-             "VC Rename: %s -> %s"
-             (abbreviate-file-name filename)
-             (abbreviate-file-name new-filename)))
-          (when (and ok-if-already-exists (file-exists-p new-filename))
-            ;; If the destination file exists, `vc-rename-file' cannot perform
-            ;; the rename; the destination must be deleted first.
-            (delete-file new-filename))
-          ;; VC Rename
-          (vc-rename-file filename new-filename))
-      ;; Rename the file
-      (rename-file filename new-filename ok-if-already-exists)
-      (when bufferfile-verbose
-        (bufferfile--message "Rename: %s -> %s"
-                             (abbreviate-file-name filename)
-                             (abbreviate-file-name new-filename))))
+    ;; Use inhibit-quit to ensure the file system mutation and the internal
+    ;; buffer renaming are treated as a single atomic operation. This prevents
+    ;; Emacs state fragmentation if the user attempts to abort the command
+    ;; mid-process.
+    (let ((inhibit-quit t))
+      (if (and bufferfile-use-vc
+               (vc-backend filename)
+               (let ((root1
+                      (let ((default-directory (file-name-directory filename)))
+                        (vc-root-dir)))
+                     (root2
+                      (let ((default-directory (file-name-directory new-filename)))
+                        (vc-root-dir))))
+                 (and root1
+                      root2
+                      (string= root1 root2))))
+          (progn
+            (when bufferfile-verbose
+              (bufferfile--message
+               "VC Rename: %s -> %s"
+               (abbreviate-file-name filename)
+               (abbreviate-file-name new-filename)))
+            (when (and ok-if-already-exists (file-exists-p new-filename))
+              ;; If the destination file exists, `vc-rename-file' cannot perform
+              ;; the rename; the destination must be deleted first.
+              (delete-file new-filename))
+            ;; VC Rename
+            (vc-rename-file filename new-filename))
+        ;; Rename the file
+        (rename-file filename new-filename ok-if-already-exists)
+        (when bufferfile-verbose
+          (bufferfile--message "Rename: %s -> %s"
+                               (abbreviate-file-name filename)
+                               (abbreviate-file-name new-filename))))
 
-    ;; Update all buffers pointing to the old filename
-    (bufferfile--rename-all-buffers filename new-filename)
+      ;; Update all buffers pointing to the old filename
+      (bufferfile--rename-all-buffers filename new-filename)
 
-    (when (and bufferfile-recentf-integration
-               (bound-and-true-p recentf-mode)
-               (boundp 'recentf-list)
-               (fboundp 'recentf-string-member)
-               (fboundp 'recentf-add-file))
-      (let* ((expanded (expand-file-name filename))
-             (truename (file-truename expanded))
-             (list-targets (list filename
-                                 expanded
-                                 (abbreviate-file-name expanded)
-                                 truename
-                                 (abbreviate-file-name truename))))
-        (dolist (target list-targets)
-          (let ((member (recentf-string-member target recentf-list)))
-            (when member
-              (setq recentf-list (delq (car member) recentf-list))))))
+      (when (and bufferfile-recentf-integration
+                 (bound-and-true-p recentf-mode)
+                 (boundp 'recentf-list)
+                 (fboundp 'recentf-string-member)
+                 (fboundp 'recentf-add-file))
+        (let* ((expanded (expand-file-name filename))
+               (truename (file-truename expanded))
+               (list-targets (list filename
+                                   expanded
+                                   (abbreviate-file-name expanded)
+                                   truename
+                                   (abbreviate-file-name truename))))
+          (dolist (target list-targets)
+            (let ((member (recentf-string-member target recentf-list)))
+              (when member
+                (setq recentf-list (delq (car member) recentf-list))))))
 
-      (recentf-add-file new-filename))
+        (recentf-add-file new-filename))
 
-    (when bufferfile-eglot-integration
-      (dolist (buf list-buffers)
-        (with-current-buffer buf
-          ;; Fix Eglot
-          (when (and (fboundp 'eglot-current-server)
-                     (fboundp 'eglot-shutdown)
-                     (fboundp 'eglot-managed-p)
-                     (fboundp 'eglot-ensure)
-                     (funcall 'eglot-managed-p))
-            (let ((server (funcall 'eglot-current-server)))
-              (when server
-                ;; Restart eglot
-                (let ((inhibit-message t))
-                  (funcall 'eglot-shutdown server))
-                (funcall 'eglot-ensure)))))))
+      (when bufferfile-eglot-integration
+        (dolist (buf list-buffers)
+          (with-current-buffer buf
+            ;; Fix Eglot
+            (when (and (fboundp 'eglot-current-server)
+                       (fboundp 'eglot-shutdown)
+                       (fboundp 'eglot-managed-p)
+                       (fboundp 'eglot-ensure)
+                       (funcall 'eglot-managed-p))
+              (let ((server (funcall 'eglot-current-server)))
+                (when server
+                  ;; Restart eglot
+                  (let ((inhibit-message t))
+                    (funcall 'eglot-shutdown server)
+                    (funcall 'eglot-ensure)))))))))
 
     (when bufferfile-dired-integration
       ;; Refresh previous directory (special case: moving files)
@@ -653,39 +659,44 @@ This function performs a comprehensive cleanup of FILENAME by:
 
               (throw 'done t))))))
 
-    ;; Kill buffer
-    (when bufferfile-eglot-integration
+    ;; Bind inhibit-quit to ensure that deleting the file and killing the internal
+    ;; buffers happens atomically, preventing detached buffers from persisting.
+    (let ((inhibit-quit t))
+      ;; Shut down eglot
+      (when bufferfile-eglot-integration
+        (dolist (buf list-buffers)
+          (with-current-buffer buf
+            (when (and (fboundp 'eglot-current-server)
+                       (fboundp 'eglot-shutdown)
+                       (fboundp 'eglot-managed-p)
+                       (funcall 'eglot-managed-p))
+              (let ((server (funcall 'eglot-current-server)))
+                (when server
+                  ;; Do not display errors such as:
+                  ;; [jsonrpc] (warning) Sentinel for EGLOT
+                  ;; (ansible-unused/(python-mode python-ts-mode)) still
+                  ;; hasn't run, deleting it!
+                  ;; [jsonrpc] Server exited with status 9
+                  (let ((inhibit-message t))
+                    (funcall 'eglot-shutdown server))))))))
+
+      ;; Kill buffers
       (dolist (buf list-buffers)
-        (with-current-buffer buf
-          (when (and (fboundp 'eglot-current-server)
-                     (fboundp 'eglot-shutdown)
-                     (fboundp 'eglot-managed-p)
-                     (funcall 'eglot-managed-p))
-            (let ((server (funcall 'eglot-current-server)))
-              (when server
-                ;; Do not display errors such as:
-                ;; [jsonrpc] (warning) Sentinel for EGLOT
-                ;; (ansible-unused/(python-mode python-ts-mode)) still
-                ;; hasn't run, deleting it!
-                ;; [jsonrpc] Server exited with status 9
-                (let ((inhibit-message t))
-                  (funcall 'eglot-shutdown server))))))
+        (kill-buffer buf))
 
-        (kill-buffer buf)))
-
-    ;; Delete file
-    (when (file-exists-p filename)
-      (if (and bufferfile-use-vc
-               vc-managed-file)
-          ;; VC delete
-          (bufferfile--vc-delete-file filename)
-        ;; Delete
-        (delete-file filename delete-by-moving-to-trash)))
+      ;; Delete file
+      (when (file-exists-p filename)
+        (if (and bufferfile-use-vc
+                 vc-managed-file)
+            ;; VC delete
+            (bufferfile--vc-delete-file filename)
+          ;; Delete
+          (delete-file filename delete-by-moving-to-trash))))
 
     (when bufferfile-verbose
       (bufferfile--message "Deleted: %s" (abbreviate-file-name filename)))
 
-    ;; Refresh dired buffers BEFORE killing the buffer
+    ;; Refresh dired buffers AFTER killing the buffer
     (when bufferfile-dired-integration
       (bufferfile--refresh-dired-buffers parent-dir-path))
 
