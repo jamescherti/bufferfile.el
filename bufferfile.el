@@ -117,6 +117,13 @@ This applies to file operations such as renaming or copying."
   :type 'boolean
   :group 'bufferfile)
 
+(defvar bufferfile-pdf-tools-integration t
+  "Whether to enable pdf-tools integration.
+This closes the document in the epdfinfo server before renaming to release
+file locks (which is necessary on Windows) and reloads it afterward to
+preserve the viewing state.
+`pdf-tools' must be loaded for this option to have any effect.")
+
 ;;; Variables
 
 (defvar bufferfile-dired-integration t
@@ -460,6 +467,14 @@ non-nil."
     ;; Emacs state fragmentation if the user attempts to abort the command
     ;; mid-process.
     (let ((inhibit-quit t))
+      ;; Close pdf-tools documents to release OS file locks on Windows
+      (when bufferfile-pdf-tools-integration
+        (dolist (buf list-buffers)
+          (with-current-buffer buf
+            (when (and (derived-mode-p 'pdf-view-mode)
+                       (fboundp 'pdf-info-close))
+              (ignore-errors (funcall 'pdf-info-close))))))
+
       (if (and bufferfile-use-vc
                (vc-registered filename)
                (vc-backend filename)
@@ -528,6 +543,14 @@ non-nil."
                   (let ((inhibit-message t))
                     (funcall 'eglot-shutdown server)
                     (funcall 'eglot-ensure))))))))
+
+      ;; Restore pdf-tools documents
+      (when bufferfile-pdf-tools-integration
+        (dolist (buf list-buffers)
+          (with-current-buffer buf
+            (when (and (derived-mode-p 'pdf-view-mode)
+                       (fboundp 'pdf-view-revert-buffer))
+              (ignore-errors (funcall 'pdf-view-revert-buffer nil t))))))
 
       (when bufferfile-dired-integration
         (let ((old-parent-dir (file-name-directory (expand-file-name filename)))
