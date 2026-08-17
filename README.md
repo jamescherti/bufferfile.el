@@ -6,6 +6,7 @@
 ![](https://jamescherti.com/misc/made-for-gnu-emacs.svg)
 
 The **[bufferfile](https://github.com/jamescherti/bufferfile.el)** Emacs package provides helper functions to delete, rename, or copy buffer files:
+
 - `bufferfile-rename`: Renames the file visited by the current buffer, ensures that the destination directory exists, and updates the buffer name for all associated buffers, including clones/indirect buffers. It also ensures that buffer-local features referencing the file, such as Eglot, Flymake, Dired buffers, or the `recentf` list, are correctly updated to reflect the new file name.
 - `bufferfile-delete`: Delete the file associated with a buffer and kill all buffers visiting that file, including clones and indirect buffers. It also ensures that relevant Dired buffers are updated and the file is removed from recentf.
 - `bufferfile-copy`: Ensures that the destination directory exists and copies the file visited by the current buffer to a new file. It also ensures that buffer-local features referencing the file, such as Dired buffers, are correctly updated to reflect the new file name.
@@ -83,28 +84,15 @@ The *bufferfile* package provides customizable hook variables that allow users t
 
 #### Hooks for Renaming Files
 
-- **`bufferfile-pre-rename-functions`**
-  A list of functions executed before renaming a file.
-  Each function receives three arguments:
-  - `previous-path`: The original file path.
-  - `new-path`: The new file path.
-  - `list-buffers`: The list of buffers associated with the file.
+**`bufferfile-pre-rename-functions`:** A list of functions executed before renaming a file. Each function receives three arguments: `previous-path` (The original file path), `new-path` (The new file path), `list-buffers` (The list of buffers associated with the file).
 
-- **`bufferfile-post-rename-functions`**
-  A list of functions executed after a file has been renamed.
-  Each function receives the same three arguments as `bufferfile-pre-rename-functions`.
+**`bufferfile-post-rename-functions`**: A list of functions executed after a file has been renamed. Each function receives the same three arguments as `bufferfile-pre-rename-functions`.
 
 #### Hooks for Deleting Files
 
-- **`bufferfile-pre-delete-functions`**
-  A list of functions executed before a file is deleted.
-  Each function receives two arguments:
-  - `path`: The file path to be deleted.
-  - `list-buffers`: The list of buffers associated with the file.
+**`bufferfile-pre-delete-functions`**: A list of functions executed before a file is deleted. Each function receives two arguments: `path` (The file path to be deleted) and `list-buffers` (The list of buffers associated with the file).
 
-- **`bufferfile-post-delete-functions`**
-  A list of functions executed after a file has been deleted.
-  Each function receives the same two arguments as `bufferfile-pre-delete-functions`.
+**`bufferfile-post-delete-functions`**: A list of functions executed after a file has been deleted. Each function receives the same two arguments as `bufferfile-pre-delete-functions`.
 
 ## Frequently asked questions
 
@@ -136,6 +124,7 @@ This program is free software: you can redistribute it and/or modify it under th
 - [bufferfile.el @GitHub](https://github.com/jamescherti/bufferfile.el)
 
 Other Emacs packages by the same author:
+
 - [minimal-emacs.d](https://github.com/jamescherti/minimal-emacs.d): This repository hosts a minimal Emacs configuration designed to serve as a foundation for your vanilla Emacs setup and provide a solid base for an enhanced Emacs experience.
 - [compile-angel.el](https://github.com/jamescherti/compile-angel.el): **Speed up Emacs!** This package guarantees that all .el files are both byte-compiled and native-compiled, which significantly speeds up Emacs.
 - [outline-indent.el](https://github.com/jamescherti/outline-indent.el): An Emacs package that provides a minor mode that enables code folding and outlining based on indentation levels for various indentation-based text files, such as YAML, Python, and other indented text files.
