@@ -652,8 +652,10 @@ This function performs a comprehensive cleanup of FILENAME by:
 
     (dolist (buf list-buffers)
       (with-current-buffer buf
-        (when (buffer-modified-p)
-          (let ((save-silently t))
+        ;; Only save before deleting if the file actually exists
+        (when (and (buffer-modified-p)
+                   (file-exists-p filename))
+          (let ((save-silently (not bufferfile-verbose)))
             (with-current-buffer (or (buffer-base-buffer)
                                      (current-buffer))
               (save-buffer))))))
@@ -699,6 +701,9 @@ This function performs a comprehensive cleanup of FILENAME by:
 
       ;; Kill buffers
       (dolist (buf list-buffers)
+        (with-current-buffer buf
+          ;; Suppress prompt if we're killing an unsaved modified buffer
+          (set-buffer-modified-p nil))
         (kill-buffer buf))
 
       ;; Delete file
