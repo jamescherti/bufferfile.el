@@ -7,9 +7,9 @@
 
 The **[bufferfile](https://github.com/jamescherti/bufferfile.el)** Emacs package provides helper functions to delete, rename, or copy buffer files:
 
-- `bufferfile-rename`: Renames the file visited by the current buffer, ensures that the destination directory exists, and updates the buffer name for all associated buffers, including clones/indirect buffers. It also ensures that buffer-local features referencing the file, such as Eglot, Flymake, Dired buffers, or the `recentf` list, are correctly updated to reflect the new file name.
+- `bufferfile-rename`: Renames the file visited by the current buffer (or safely retargets the buffer if the file does not yet exist on disk), ensures that the destination directory exists, and updates the buffer name for all associated buffers, including clones/indirect buffers. It also ensures that buffer-local features referencing the file, such as Eglot, Flymake, Dired buffers, or the `recentf` list, are correctly updated to reflect the new file name.
 - `bufferfile-delete`: Delete the file associated with a buffer and kill all buffers visiting that file, including clones and indirect buffers. It also ensures that relevant Dired buffers are updated and the file is removed from recentf.
-- `bufferfile-copy`: Ensures that the destination directory exists and copies the file visited by the current buffer to a new file. It also ensures that buffer-local features referencing the file, such as Dired buffers, are correctly updated to reflect the new file name.
+- `bufferfile-copy`: Ensures that the destination directory exists and copies the file visited by the current buffer to a new file. If the current buffer is new and hasn't been saved to disk yet, its contents are cleanly written directly to the new file. It also ensures that buffer-local features referencing the file, such as Dired buffers, are correctly updated to reflect the new file name.
 
 If this enhances your workflow, please show your support by **⭐ starring bufferfile.el on GitHub** to help more Emacs users discover its benefits.
 
@@ -47,13 +47,9 @@ To install *bufferfile* from MELPA:
 
 ## Usage
 
-- To rename the current buffer's file and associated buffers, run: `M-x bufferfile-rename`
-  (You will be prompted to enter a new name. The file will be renamed on disk, and the buffer—along with any associated buffers such as indirect buffers—will begin visiting the new file, with their buffer names updated accordingly.)
-
-- To delete the current buffer's file and associated buffers, run: `M-x bufferfile-delete`
-  (You will be asked to confirm the deletion. If confirmed, the file will be removed from disk, and all associated buffers, including indirect buffers, will be killed.)
-
-- To copy the current buffer's file, run: `M-x bufferfile-copy`
+- To rename the current buffer's file and associated buffers, run: `M-x bufferfile-rename` (You will be prompted to enter a new name. The file will be renamed on disk, or simply retargeted if it is a brand new, unsaved buffer, and the buffer, along with any associated buffers such as indirect buffers, will begin visiting the new file with their buffer names updated accordingly.)
+- To delete the current buffer's file and associated buffers, run: `M-x bufferfile-delete` (You will be asked to confirm the deletion. If confirmed, the file will be removed from disk, and all associated buffers, including indirect buffers, will be killed.)
+- To copy the current buffer's file, run: `M-x bufferfile-copy` (Copies the current file to a new destination. If the buffer is unsaved and doesn't exist on disk yet, its contents are safely written to the new target without affecting the active buffer's state.)
 
 ## Customizations
 

@@ -208,11 +208,6 @@ Return nil if the buffer is not associated with a file."
         (unless filename
           (bufferfile--error "The buffer '%s' is not associated with a file"
                              (buffer-name)))
-
-        (unless (file-regular-p filename)
-          (bufferfile--error "The file '%s' does not exist on disk"
-                             filename))
-
         (expand-file-name filename)))))
 
 (defun bufferfile--read-dest-file-name (filename prompt-prefix)
@@ -429,10 +424,6 @@ non-nil."
       (bufferfile--error "Source and destination are the same file: '%s'"
                          src-truename))
 
-    (unless (file-exists-p filename)
-      (bufferfile--error "Source file '%s' does not exist; cannot move to '%s'"
-                         filename new-filename))
-
     (when (and (file-exists-p new-filename)
                (not ok-if-already-exists))
       (if confirm-overwrite
@@ -472,40 +463,40 @@ non-nil."
                                   src-truename))))))))
 
     ;; Use inhibit-quit to ensure the file system mutation and the internal
-    ;; buffer renaming are treated as a single atomic operation. This prevents
-    ;; Emacs state fragmentation if the user attempts to abort the command
-    ;; mid-process.
+    ;; buffer renaming are treated as a single atomic operation.
     (let ((inhibit-quit t))
-      (if (and bufferfile-use-vc
-               (vc-registered filename)
-               (vc-backend filename)
-               (let ((root1
-                      (let ((default-directory (file-name-directory filename)))
-                        (vc-root-dir)))
-                     (root2
-                      (let ((default-directory (file-name-directory new-filename)))
-                        (vc-root-dir))))
-                 (and root1
-                      root2
-                      (string= root1 root2))))
-          (progn
-            (when bufferfile-verbose
-              (bufferfile--message
-               "VC Rename: %s -> %s"
-               (abbreviate-file-name filename)
-               (abbreviate-file-name new-filename)))
-            (when (and ok-if-already-exists (file-exists-p new-filename))
-              ;; If the destination file exists, `vc-rename-file' cannot perform
-              ;; the rename; the destination must be deleted first.
-              (delete-file new-filename))
-            ;; VC Rename
-            (vc-rename-file filename new-filename))
-        ;; Rename the file
-        (rename-file filename new-filename ok-if-already-exists)
-        (when bufferfile-verbose
-          (bufferfile--message "Rename: %s -> %s"
-                               (abbreviate-file-name filename)
-                               (abbreviate-file-name new-filename))))
+      ;; Only attempt disk operations if the file actually exists
+      (when (file-exists-p filename)
+        (if (and bufferfile-use-vc
+                 (vc-registered filename)
+                 (vc-backend filename)
+                 (let ((root1
+                        (let ((default-directory (file-name-directory filename)))
+                          (vc-root-dir)))
+                       (root2
+                        (let ((default-directory (file-name-directory new-filename)))
+                          (vc-root-dir))))
+                   (and root1
+                        root2
+                        (string= root1 root2))))
+            (progn
+              (when bufferfile-verbose
+                (bufferfile--message
+                 "VC Rename: %s -> %s"
+                 (abbreviate-file-name filename)
+                 (abbreviate-file-name new-filename)))
+              (when (and ok-if-already-exists (file-exists-p new-filename))
+                ;; If the destination file exists, `vc-rename-file' cannot perform
+                ;; the rename; the destination must be deleted first.
+                (delete-file new-filename))
+              ;; VC Rename
+              (vc-rename-file filename new-filename))
+          ;; Rename the file
+          (rename-file filename new-filename ok-if-already-exists)
+          (when bufferfile-verbose
+            (bufferfile--message "Rename: %s -> %s"
+                                 (abbreviate-file-name filename)
+                                 (abbreviate-file-name new-filename)))))
 
       ;; Update all buffers pointing to the old filename
       (bufferfile--rename-all-buffers filename new-filename)
@@ -593,7 +584,9 @@ process."
            (original-buffer (or (buffer-base-buffer) (current-buffer)))
            (ok-if-already-exists t))
       (with-current-buffer original-buffer
-        (when (buffer-modified-p)
+        ;; Only attempt to save before renaming if the file actually exists
+        (when (and (buffer-modified-p)
+                   (file-exists-p filename))
           (let ((save-silently (not bufferfile-verbose)))
             (save-buffer)))
 
@@ -805,12 +798,8 @@ process."
   (with-current-buffer buffer
     (let* ((filename (bufferfile--get-buffer-filename))
            (original-buffer (or (buffer-base-buffer) (current-buffer))))
-      ;; Save
-      (with-current-buffer original-buffer
-        (when (buffer-modified-p)
-          (let ((save-silently (not bufferfile-verbose)))
-            (save-buffer)))
 
+      (with-current-buffer original-buffer
         ;; Prompt user
         (let ((new-filename (bufferfile--read-dest-file-name filename
                                                              "Copy ")))
@@ -824,7 +813,16 @@ process."
             (when-let* ((dest-dir (file-name-directory new-filename)))
               (make-directory dest-dir t)))
 
-          (copy-file filename new-filename t)
+          (if (file-exists-p filename)
+              (progn
+                ;; Save original if modified, then copy
+                (when (buffer-modified-p)
+                  (let ((save-silently (not bufferfile-verbose)))
+                    (save-buffer)))
+                (copy-file filename new-filename t))
+            ;; Source file doesn't exist on disk yet; write buffer contents to
+            ;; the new file
+            (write-region nil nil new-filename nil (if bufferfile-verbose nil 'quiet)))
 
           ;; Refresh dired buffers
           (when bufferfile-dired-integration
