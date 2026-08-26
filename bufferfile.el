@@ -5,7 +5,7 @@
 ;; Author: James Cherti <https://www.jamescherti.com/contact/>
 ;; Version: 1.0.8
 ;; URL: https://github.com/jamescherti/bufferfile.el
-;; Keywords: convenience
+;; Keywords: convenience, files, tools
 ;; Package-Requires: ((emacs "26.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -73,7 +73,7 @@
 
 (defgroup bufferfile nil
   "Delete or rename buffer files."
-  :group 'bufferfile
+  :group 'convenience
   :prefix "bufferfile-"
   :link '(url-link
           :tag "Github"
