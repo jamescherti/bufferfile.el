@@ -117,6 +117,14 @@ This applies to file operations such as renaming or copying."
   :type 'boolean
   :group 'bufferfile)
 
+(defcustom bufferfile-update-mode-on-rename t
+  "If non-nil, update the major mode after a file is renamed.
+When this option is enabled, `normal-mode' is executed after renaming the file
+to ensure the correct major mode and local variables are applied based on the
+new file extension or name."
+  :type 'boolean
+  :group 'bufferfile)
+
 ;;; Variables
 
 (defvar bufferfile-dired-integration t
@@ -388,7 +396,12 @@ This includes indirect buffers whose names are derived from the old filename."
               (when (and buffer-file-name
                          (string= (file-truename buffer-file-name)
                                   old-filename-truename))
-                (set-visited-file-name new-filename t t)))))))
+                (set-visited-file-name new-filename t t)
+                ;; Re-evaluate the major mode and file-local variables based on
+                ;; the new file name (for example, if the file extension
+                ;; changed).
+                (when bufferfile-update-mode-on-rename
+                  (normal-mode t))))))))
 
     ;; Update the names of file visiting buffer and indirect buffers (clones)
     ;; associated with buffers visiting the renamed files.
