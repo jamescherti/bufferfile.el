@@ -212,7 +212,9 @@ Return nil if the buffer is not associated with a file."
 
 (defun bufferfile--read-dest-file-name (filename prompt-prefix)
   "Prompt for a destination file name different from FILENAME.
-PROMPT-PREFIX: The text prepended to the user input prompt."
+
+FILENAME is the absolute path of the source file.
+PROMPT-PREFIX is the text prepended to the user input prompt."
   (let* ((basename (file-name-nondirectory filename))
          (new-filename (read-file-name
                         (format "%s%s'%s' to: "
@@ -225,6 +227,9 @@ PROMPT-PREFIX: The text prepended to the user input prompt."
                         basename)))
     (unless new-filename
       (bufferfile--error "A new file name must be specified"))
+
+    (when (file-directory-p new-filename)
+      (setq new-filename (expand-file-name basename new-filename)))
 
     (when (string= (file-truename filename)
                    (file-truename new-filename))
