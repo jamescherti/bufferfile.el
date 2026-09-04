@@ -117,7 +117,7 @@ This applies to file operations such as renaming or copying."
   :type 'boolean
   :group 'bufferfile)
 
-(defcustom bufferfile-update-mode-on-rename t
+(defcustom bufferfile-update-mode-on-rename nil
   "If non-nil, update the major mode after a file is renamed.
 When this option is enabled, `normal-mode' is executed after renaming the file
 to ensure the correct major mode and local variables are applied based on the
@@ -483,6 +483,14 @@ non-nil."
     ;; Use inhibit-quit to ensure the file system mutation and the internal
     ;; buffer renaming are treated as a single atomic operation.
     (let ((inhibit-quit t))
+      ;; Kill any existing buffers already visiting the destination file. This
+      ;; ensures they are replaced by the renamed buffer and prevents
+      ;; `set-visited-file-name' from throwing a conflict error.
+      (dolist (buf (bufferfile--get-list-buffers new-filename))
+        (with-current-buffer buf
+          (set-buffer-modified-p nil))
+        (kill-buffer buf))
+
       ;; Only attempt disk operations if the file actually exists
       (when (file-exists-p filename)
         (if (and bufferfile-use-vc
