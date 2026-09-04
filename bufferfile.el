@@ -538,31 +538,32 @@ non-nil."
 
         (recentf-add-file new-filename))
 
-      (when bufferfile-eglot-integration
-        (dolist (buf list-buffers)
-          (with-current-buffer buf
-            ;; Fix Eglot
-            (when (and (fboundp 'eglot-current-server)
-                       (fboundp 'eglot-shutdown)
-                       (fboundp 'eglot-managed-p)
-                       (fboundp 'eglot-ensure)
-                       (funcall 'eglot-managed-p))
-              (let ((server (funcall 'eglot-current-server)))
-                (when server
-                  ;; Restart eglot
-                  (let ((inhibit-message t))
-                    (funcall 'eglot-shutdown server)
-                    (funcall 'eglot-ensure))))))))
+      (unless bufferfile-update-mode-on-rename
+        (when bufferfile-eglot-integration
+          (dolist (buf list-buffers)
+            (with-current-buffer buf
+              ;; Fix Eglot
+              (when (and (fboundp 'eglot-current-server)
+                         (fboundp 'eglot-shutdown)
+                         (fboundp 'eglot-managed-p)
+                         (fboundp 'eglot-ensure)
+                         (funcall 'eglot-managed-p))
+                (let ((server (funcall 'eglot-current-server)))
+                  (when server
+                    ;; Restart eglot
+                    (let ((inhibit-message t))
+                      (funcall 'eglot-shutdown server)
+                      (funcall 'eglot-ensure))))))))
 
-      (when bufferfile-flymake-integration
-        (dolist (buf list-buffers)
-          (with-current-buffer buf
-            ;; Restart Flymake
-            (when (and (fboundp 'flymake-mode)
-                       (bound-and-true-p flymake-mode))
-              (let ((inhibit-message t))
-                (funcall 'flymake-mode -1)
-                (funcall 'flymake-mode 1))))))
+        (when bufferfile-flymake-integration
+          (dolist (buf list-buffers)
+            (with-current-buffer buf
+              ;; Restart Flymake
+              (when (and (fboundp 'flymake-mode)
+                         (bound-and-true-p flymake-mode))
+                (let ((inhibit-message t))
+                  (funcall 'flymake-mode -1)
+                  (funcall 'flymake-mode 1)))))))
 
       (when bufferfile-dired-integration
         (let ((old-parent-dir (file-name-directory (expand-file-name filename)))
