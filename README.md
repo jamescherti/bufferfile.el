@@ -5,6 +5,9 @@
 ![License](https://img.shields.io/github/license/jamescherti/bufferfile.el)
 ![](https://jamescherti.com/misc/made-for-gnu-emacs.svg)
 
+- Author: James Cherti <[https://www.jamescherti.com/](https://www.jamescherti.com/)>
+- License: GPL
+
 The **[bufferfile](https://github.com/jamescherti/bufferfile.el)** Emacs package provides helper functions to delete, rename, or copy buffer files:
 
 - `bufferfile-rename`: Renames the file visited by the current buffer (or safely retargets the buffer if the file does not yet exist on disk). If an existing directory is provided as the destination, the file is moved into that directory while retaining its original name. It ensures that the destination directory exists and updates the buffer name for all associated buffers, including clones/indirect buffers. It also ensures that buffer-local features referencing the file, such as Eglot, Flymake, Dired buffers, or the `recentf` list, are correctly updated to reflect the new file name.
