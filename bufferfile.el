@@ -69,6 +69,12 @@
 
 ;;; Code:
 
+(eval-when-compile
+  (require 'subr-x))
+
+(when (< emacs-major-version 28)
+  (require 'subr-x))
+
 ;;; Customizations
 
 (defgroup bufferfile nil
