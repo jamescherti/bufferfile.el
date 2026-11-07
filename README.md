@@ -6,7 +6,7 @@
 ![](https://jamescherti.com/misc/made-for-gnu-emacs.svg)
 
 - Author: James Cherti <[https://www.jamescherti.com/](https://www.jamescherti.com/)>
-- License: GPL
+- License: GPL 3.0 or later
 
 The **[bufferfile](https://github.com/jamescherti/bufferfile.el)** Emacs package provides helper functions to delete, rename, or copy buffer files:
 
